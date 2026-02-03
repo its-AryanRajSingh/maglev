@@ -12,9 +12,22 @@ import (
 func (api *RestAPI) reportProblemWithStopHandler(w http.ResponseWriter, r *http.Request) {
 	stopID := utils.ExtractIDFromParams(r)
 
-	// TODO: Add required validation
+	// Validate stopID is not empty
 	if stopID == "" {
-		api.sendNull(w, r)
+		fieldErrors := map[string][]string{
+			"id": {"stop ID is required"},
+		}
+		api.validationErrorResponse(w, r, fieldErrors)
+		return
+	}
+
+	// Validate stopID format (must be in agency_stopCode format)
+	_, _, err := utils.ExtractAgencyIDAndCodeID(stopID)
+	if err != nil {
+		fieldErrors := map[string][]string{
+			"id": {"invalid stop ID format: " + err.Error()},
+		}
+		api.validationErrorResponse(w, r, fieldErrors)
 		return
 	}
 
@@ -26,7 +39,16 @@ func (api *RestAPI) reportProblemWithStopHandler(w http.ResponseWriter, r *http.
 	userLon := query.Get("userLon")
 	userLocationAccuracy := query.Get("userLocationAccuracy")
 
-	// TODO: Add storage logic for the problem report, I leave it as a log statement for now
+	// Validate required code parameter
+	if code == "" {
+		fieldErrors := map[string][]string{
+			"code": {"problem code is required"},
+		}
+		api.validationErrorResponse(w, r, fieldErrors)
+		return
+	}
+
+	// Log the problem report
 	logger := logging.FromContext(r.Context()).With(slog.String("component", "problem_reporting"))
 	logging.LogOperation(logger, "problem_report_received_for_stop",
 		slog.String("stop_id", stopID),

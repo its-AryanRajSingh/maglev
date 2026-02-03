@@ -13,9 +13,22 @@ func (api *RestAPI) reportProblemWithTripHandler(w http.ResponseWriter, r *http.
 
 	tripID := utils.ExtractIDFromParams(r)
 
-	// TODO: Add required validation
+	// Validate tripID is not empty
 	if tripID == "" {
-		api.sendNull(w, r)
+		fieldErrors := map[string][]string{
+			"id": {"trip ID is required"},
+		}
+		api.validationErrorResponse(w, r, fieldErrors)
+		return
+	}
+
+	// Validate tripID format (must be in agency_tripCode format)
+	_, _, err := utils.ExtractAgencyIDAndCodeID(tripID)
+	if err != nil {
+		fieldErrors := map[string][]string{
+			"id": {"invalid trip ID format: " + err.Error()},
+		}
+		api.validationErrorResponse(w, r, fieldErrors)
 		return
 	}
 
@@ -32,7 +45,16 @@ func (api *RestAPI) reportProblemWithTripHandler(w http.ResponseWriter, r *http.
 	userLon := query.Get("userLon")
 	userLocationAccuracy := query.Get("userLocationAccuracy")
 
-	// TODO: Add storage logic for the problem report, I leave it as a log statement for now
+	// Validate required code parameter
+	if code == "" {
+		fieldErrors := map[string][]string{
+			"code": {"problem code is required"},
+		}
+		api.validationErrorResponse(w, r, fieldErrors)
+		return
+	}
+
+	// Log the problem report
 	logger := logging.FromContext(r.Context()).With(slog.String("component", "problem_reporting"))
 	logging.LogOperation(logger, "problem_report_received_for_trip",
 		slog.String("trip_id", tripID),
